@@ -1,0 +1,94 @@
+import { Router } from 'express';
+import bcrypt from 'bcrypt';
+import { prisma } from '../lib/prisma.js';
+import { asyncHandler } from '../utils/async-handler.js';
+import { HttpError } from '../utils/http-error.js';
+import { signAccessToken, signRefreshToken, verifyRefreshToken, authRequired } from '../middleware/auth.js';
+import { loginSchema, refreshSchema, registerSchema } from '../schemas/auth.js';
+import { ipWhitelist } from '../middleware/ip-whitelist.js';
+
+export const authRouter = Router();
+
+function toSafeUser(user: {
+  id: string; name: string; email: string; role: string; avatar?: string | null;
+}) {
+  return { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar ?? null };
+}
+
+authRouter.post(
+  '/register',
+  ipWhitelist,
+  asyncHandler(async (req, res) => {
+    const { body } = registerSchema.parse({ body: req.body });
+    const password = await bcrypt.hash(body.password, 10);
+
+    const user = await prisma.user.create({
+      data: { name: body.name, email: body.email, password, role: body.role },
+      select: { id: true, name: true, email: true, role: true, avatar: true },
+    });
+
+    const authUser: Express.AuthUser = { id: user.id, name: user.name, email: user.email, role: user.role as Express.AuthUser['role'], avatar: user.avatar };
+    const accessToken = signAccessToken(authUser);
+    const refreshToken = signRefreshToken(authUser);
+
+    res.status(201).json({ accessToken, refreshToken, user: toSafeUser(user) });
+  }),
+);
+
+authRouter.post(
+  '/login',
+  asyncHandler(async (req, res) => {
+    const { body } = loginSchema.parse({ body: req.body });
+    const user = await prisma.user.findUnique({
+      where: { email: body.email },
+      select: { id: true, name: true, email: true, password: true, role: true, avatar: true, status: true },
+    });
+
+    if (!user) throw new HttpError(401, '邮箱或密码不正确');
+    const passwordMatches = await bcrypt.compare(body.password, user.password);
+    if (!passwordMatches) throw new HttpError(401, '邮箱或密码不正确');
+
+    if (user.status === 'disabled') throw new HttpError(403, '账号已被禁用');
+
+    const safeUser = toSafeUser(user);
+    const authUser: Express.AuthUser = { id: user.id, name: user.name, email: user.email, role: user.role as Express.AuthUser['role'], avatar: user.avatar };
+    const accessToken = signAccessToken(authUser);
+    const refreshToken = signRefreshToken(authUser);
+
+    res.json({ accessToken, refreshToken, user: safeUser });
+  }),
+);
+
+authRouter.post(
+  '/refresh',
+  asyncHandler(async (req, res) => {
+    const { body } = refreshSchema.parse({ body: req.body });
+
+    let payload: { sub: string };
+    try {
+      payload = verifyRefreshToken(body.refreshToken);
+    } catch {
+      throw new HttpError(401, 'Refresh token 已失效，请重新登录');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, name: true, email: true, role: true, avatar: true, status: true },
+    });
+
+    if (!user || user.status === 'disabled') throw new HttpError(401, '用户不存在或已被禁用');
+
+    const accessToken = signAccessToken(user);
+    const newRefreshToken = signRefreshToken(user);
+
+    res.json({ accessToken, refreshToken: newRefreshToken, user: toSafeUser(user) });
+  }),
+);
+
+authRouter.get(
+  '/me',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    res.json({ data: toSafeUser(req.user!) });
+  }),
+);
