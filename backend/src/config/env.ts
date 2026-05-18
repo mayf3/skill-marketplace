@@ -10,6 +10,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('2h'),
   JWT_REFRESH_SECRET: z.string().min(16).default('dev-only-refresh-secret-change-me'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  JWT_SECRET_SSO: z.string().min(16).default('dev-only-sso-secret-change-me'),
   FRONTEND_ORIGIN: z.string().default('http://localhost:5174'),
   UPLOAD_DIR: z.string().default('./uploads'),
   UPLOAD_MAX_SIZE: z.coerce.number().default(52428800), // 50MB
@@ -25,7 +26,8 @@ if (!parsed.success) {
 if (
   parsed.data.NODE_ENV === 'production' &&
   (parsed.data.JWT_SECRET === 'dev-only-change-this-secret' ||
-    parsed.data.JWT_REFRESH_SECRET === 'dev-only-refresh-secret-change-me')
+    parsed.data.JWT_REFRESH_SECRET === 'dev-only-refresh-secret-change-me' ||
+    parsed.data.JWT_SECRET_SSO === 'dev-only-sso-secret-change-me')
 ) {
   console.error('JWT secrets must be set to strong values in production.');
   process.exit(1);

@@ -6,13 +6,16 @@ declare global {
     interface Request {
       user?: AuthUser;
       requestId: string;
+      authTokenPayload?: { sub: string };
     }
 
     interface AuthUser {
       id: string;
       name: string;
-      email: string;
-      role: 'admin' | 'publisher' | 'user';
+      email?: string;
+      role: string;
+      agentId?: string;
+      permissions?: string[];
       avatar?: string | null;
       status?: string;
     }

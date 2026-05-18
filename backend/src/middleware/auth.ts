@@ -35,6 +35,11 @@ export const authRequired = asyncHandler(async (req: Request, _res: Response, ne
     throw new HttpError(401, '请先登录');
   }
 
+  // 如果已通过 SSO 中间件注入用户信息，直接放行
+  if (req.user && req.user.agentId) {
+    return next();
+  }
+
   let payload: TokenPayload;
   try {
     payload = jwt.verify(token, env.JWT_SECRET) as TokenPayload;
@@ -60,7 +65,7 @@ export function requireRoles(...roles: UserRole[]): RequestHandler {
     if (!req.user) {
       return next(new HttpError(401, '请先登录'));
     }
-    if (!roles.includes(req.user.role)) {
+    if (!roles.includes(req.user.role as UserRole)) {
       return next(new HttpError(403, '当前角色无权执行此操作'));
     }
     return next();

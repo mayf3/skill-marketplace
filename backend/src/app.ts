@@ -11,6 +11,7 @@ import { applicationsRouter } from './routes/applications.js';
 import { reviewsRouter } from './routes/reviews.js';
 import { adminRouter } from './routes/admin.js';
 import { errorHandler } from './middleware/error-handler.js';
+import { ssoOptional } from './middleware/sso-auth.js';
 import { HttpError } from './utils/http-error.js';
 
 export const app = express();
@@ -29,6 +30,9 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '10mb' }));
+
+// SSO 统一认证（可选，Agent 可带 ADC JWT 访问）
+app.use(ssoOptional);
 
 // 速率限制
 const authLimiter = rateLimit({

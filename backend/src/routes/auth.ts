@@ -10,9 +10,9 @@ import { ipWhitelist } from '../middleware/ip-whitelist.js';
 export const authRouter = Router();
 
 function toSafeUser(user: {
-  id: string; name: string; email: string; role: string; avatar?: string | null;
+  id: string; name: string; email?: string; role: string; avatar?: string | null;
 }) {
-  return { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar ?? null };
+  return { id: user.id, name: user.name, email: user.email ?? '', role: user.role, avatar: user.avatar ?? null };
 }
 
 authRouter.post(
