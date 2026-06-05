@@ -310,7 +310,7 @@ api.interceptors.response.use(
 VITE_API_BASE_URL=/api
 
 # .env.production（生产环境）
-VITE_API_BASE_URL=http://<SERVER_IP>:4001/api
+VITE_API_BASE_URL=http://localhost:4001/api
 VITE_IS_PUBLIC_MODE=false
 ```
 
